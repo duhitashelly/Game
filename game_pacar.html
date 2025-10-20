@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Mission — Catch → Photo → Envelope</title>
+<meta name="color-scheme" content="dark">
+<style>
+  :root{
+    --bg-1:#04040a;
+    --bg-2:#08102a;
+    --card:#0b1120;
+    --muted:#9aa3b3;
+    --accent-cyan:#48e6ff;
+    --accent-pink:#ff6ec7;
+    --paper:#0e1620;
+    --ink:#e6f6ff;
+  }
+  *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  html,body{height:100%;margin:0;background:
+    radial-gradient(900px 380px at 8% 8%, rgba(72,230,255,0.03), transparent 7%),
+    linear-gradient(180deg,var(--bg-1),var(--bg-2)); color:var(--ink);
+    -webkit-font-smoothing:antialiased;}
+  .app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+  .card{width:96%;max-width:460px;border-radius:16px;padding:16px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));box-shadow:0 14px 40px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.02);position:relative;overflow:hidden}
+  header{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-pink));display:flex;align-items:center;justify-content:center;font-weight:800;color:#021}
+  h1{margin:0;font-size:18px}
+  p.lead{margin:2px 0 8px;color:var(--muted);font-size:13px}
+
+  /* views */
+  .view{display:none}
+  .view.active{display:block}
+
+  /* PIN */
+  .display{background:linear-gradient(180deg, rgba(255,255,255,0.008), rgba(255,255,255,0.01));border-radius:12px;padding:12px 14px;font-size:26px;letter-spacing:8px;text-align:center;color:#bfefff;margin:12px 0;height:56px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.02)}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+  .key{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:14px 0;font-size:20px;text-align:center;color:#e8f9ff;cursor:pointer;border:1px solid rgba(255,255,255,0.02);box-shadow:0 6px 18px rgba(2,6,23,0.45);user-select:none}
+  .key.action{background:linear-gradient(90deg,var(--accent-cyan),var(--accent-pink));color:#021;font-weight:700}
+  .controls{display:flex;gap:10px;margin-top:12px}
+  .btn{flex:1;padding:10px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);font-weight:600;cursor:pointer}
+  .btn.primary{background:linear-gradient(90deg,var(--accent-cyan),var(--accent-pink));color:#021;border:none;box-shadow:0 8px 30px rgba(57,230,255,0.06)}
+
+  #msg{min-height:28px;margin-top:10px;color:#cfefff;text-align:center;font-size:14px}
+
+  /* CATCH GAME */
+  #playArea{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));border-radius:14px;padding:12px;height:380px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.02);display:flex;flex-direction:column;align-items:stretch}
+  .hud{display:flex;justify-content:space-between;align-items:center;padding:0 6px;margin-bottom:6px}
+  .timer{font-weight:700;font-size:16px}
+  .score{font-weight:800;font-size:16px;color:var(--accent-cyan)}
+  .arena{flex:1;position:relative;background:transparent;border-radius:10px;overflow:hidden}
+  .item{position:absolute;font-size:42px;transform:translate(-50%,-50%);pointer-events:auto;user-select:none;filter:drop-shadow(0 10px 18px rgba(0,0,0,0.6))}
+  .player{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:96px;height:66px;border-radius:12px;background:linear-gradient(90deg,var(--accent-cyan),var(--accent-pink));display:flex;align-items:center;justify-content:center;font-size:28px;color:#021;box-shadow:0 12px 30px rgba(0,0,0,0.6);touch-action:none}
+  .controls-touch{display:flex;gap:10px;margin-top:10px;justify-content:center}
+  .touch-btn{width:60px;height:46px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink);user-select:none}
+
+  /* result photo (hidden until success) */
+  .result-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
+  .photo{
+    width:220px;height:220px;border-radius:16px;background:linear-gradient(180deg,#111827,#0b1220);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;box-shadow:0 18px 40px rgba(0,0,0,0.6);
+    position:relative;border:1px solid rgba(255,255,255,0.03)
+  }
+  .photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .photo .label{position:absolute;bottom:8px;left:0;right:0;text-align:center;color:var(--ink);font-weight:700;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.35));padding:6px 8px;border-radius:0 0 12px 12px;}
+
+  /* boom particle */
+  .boom-piece{position:fixed;width:8px;height:8px;border-radius:3px;z-index:9999;pointer-events:none}
+
+  /* envelope */
+  .envelope-wrap{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:18px}
+  .envelope{width:260px;height:160px;border-radius:12px;background:linear-gradient(180deg,#0e1622,#071018);border:1px solid rgba(255,255,255,0.03);position:relative;cursor:pointer;box-shadow:0 18px 40px rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center}
+  .flap{position:absolute;top:0;left:0;right:0;height:56%;background:linear-gradient(135deg,var(--accent-pink),var(--accent-cyan));clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top center;transition:transform .9s cubic-bezier(.2,.9,.2,1);box-shadow:0 6px 18px rgba(0,0,0,0.45)}
+  .paper{width:86%;height:78%;background:linear-gradient(180deg,#071018,#0b1218);border-radius:8px;padding:12px;color:var(--ink);transform:translateY(14px);opacity:0;transition:all .6s;overflow:auto;border:1px solid rgba(255,255,255,0.02)}
+  .paper.show{transform:translateY(-18px);opacity:1}
+  .letter-text{white-space:pre-wrap;font-size:15px;color:var(--ink);line-height:1.45;max-height:220px;overflow:auto}
+  .muted{color:var(--muted);font-size:13px;text-align:center;margin-top:6px}
+
+  /* confetti */
+  .confetti{position:fixed;width:8px;height:10px;border-radius:2px;z-index:9999;opacity:0.95}
+
+  @media (max-width:420px){
+    .item{font-size:36px}
+    .player{width:82px;height:58px;font-size:24px}
+    .photo{width:200px;height:200px}
+    .envelope{width:220px;height:140px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="card" role="application" aria-label="Mission Catch Photo">
+    <header>
+      <div class="logo">MC</div>
+      <div>
+        <h1>Halloww ehehehe</h1>
+      </div>
+    </header>
+
+    <!-- VIEW PIN -->
+    <section id="view-pin" class="view active" aria-live="polite">
+      <div id="display" class="display">● ● ● ●</div>
+      <div class="keypad" id="keypad">
+        <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+        <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+        <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+        <div class="key">⌫</div><div class="key">0</div><div class="key action">✓</div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="resetBtn">Reset</button>
+        <button class="btn primary" id="hintBtn">Kejutan</button>
+      </div>
+      <div id="msg">Tekan angka untuk memasukkan PIN.</div>
+    </section>
+
+    <!-- VIEW GAME -->
+    <section id="view-game" class="view" aria-hidden="true">
+      <div id="playArea">
+        <div class="hud">
+          <div class="timer">Waktu: <span id="timer">0</span>s</div>
+          <div class="score">Skor: <span id="score">0</span></div>
+        </div>
+        <div class="arena" id="arena">
+          <div id="player" class="player" role="button" aria-label="player">😺</div>
+        </div>
+      </div>
+
+      <div class="controls-touch" id="touchControls">
+        <div class="touch-btn" id="leftBtn"></div>
+        <div class="touch-btn" id="rightBtn"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="btn" id="giveUpBtn">Batal</button>
+        <button class="btn primary" id="readyBtn">Siap!</button>
+      </div>
+
+      <div id="gameMsg" style="margin-top:10px;color:var(--muted)"></div>
+    </section>
+
+    <!-- VIEW RESULT (photo) -->
+    <section id="view-result" class="view" aria-hidden="true">
+      <div class="result-wrap">
+        <div class="photo" id="photoBox" title="Ketuk untuk lanjut">
+          <!-- default avatar; you can replace src with real photo later -->
+          <img id="avatarImg" src="pacar.jpeg" alt="pacar">
+          <div class="label">Kamu berhasil 😍 ketuk foto~</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW ENVELOPE -->
+    <section id="view-envelope" class="view" aria-hidden="true">
+      <div class="envelope-wrap">
+        <div class="envelope" id="envelope" title="Ketuk untuk buka">
+          <div class="flap" id="flap"></div>
+          <div class="paper" id="paper" role="article" aria-live="polite">
+            <div class="letter-text" id="letterText"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;width:100%;justify-content:center;">
+          <button class="btn" id="restartBtn">Ulangi</button>
+          <button class="btn primary" id="downloadBtn">Simpan Surat</button>
+        </div>
+
+        <div style="margin-top:8px;color:var(--muted);font-size:13px;text-align:center">Ketuk amplop untuk membuka surat ✉️</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+/* CONFIG */
+const SECRET_PIN = "2025";
+const GAME_DURATION = 14;
+const ITEM_SPAWN_MIN = 900;
+const ITEM_SPAWN_MAX = 1500;
+const ITEM_FLOAT_MIN = 4200;
+const ITEM_FLOAT_MAX = 6200;
+const PLAYER_SPEED = 12; // px per frame while holding
+const REQUIRED_SCORE = 6; // minimal score to be considered success (can adjust)
+const LETTER_CONTENT = `Hehehe haloo, 
+mau bilang aja kalau sayang kamuuuuuuuuuuuuu,
+besok ga ketemu sedihhh. Kata pika "miaw miaw miaw"
+artinya dia kucing, ga lucu, sayang kamuuu banget hihi
+♥️♥️`;
+
+/* State */
+let pinEntry = "";
+let inGame=false, spawnTimer=null, gameInterval=null, timeLeft=GAME_DURATION, score=0;
+let leftPressed=false, rightPressed=false, animationId=null, items=[];
+let opened=false;
+
+/* Elements */
+const display = document.getElementById('display');
+const keypad = document.getElementById('keypad');
+const msg = document.getElementById('msg');
+const resetBtn = document.getElementById('resetBtn');
+const hintBtn = document.getElementById('hintBtn');
+const viewPin = document.getElementById('view-pin');
+const viewGame = document.getElementById('view-game');
+const viewResult = document.getElementById('view-result');
+const viewEnvelope = document.getElementById('view-envelope');
+const arena = document.getElementById('arena');
+const player = document.getElementById('player');
+const timerEl = document.getElementById('timer');
+const scoreEl = document.getElementById('score');
+const readyBtn = document.getElementById('readyBtn');
+const giveUpBtn = document.getElementById('giveUpBtn');
+const gameMsg = document.getElementById('gameMsg');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+
+const photoBox = document.getElementById('photoBox');
+const avatarImg = document.getElementById('avatarImg');
+
+const envelope = document.getElementById('envelope');
+const flap = document.getElementById('flap');
+const paper = document.getElementById('paper');
+const letterText = document.getElementById('letterText');
+const restartBtn = document.getElementById('restartBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+
+/* Audio (WebAudio) */
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function beep(freq=440,dur=0.06,type='sine'){ try{ if(!audioCtx) audioCtx = new AudioCtx(); const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type = type; o.frequency.value = freq; o.connect(g); g.connect(audioCtx.destination); const now = audioCtx.currentTime; g.gain.value = 0.0001; g.gain.exponentialRampToValueAtTime(0.12, now+0.01); o.start(now); g.gain.exponentialRampToValueAtTime(0.0001, now+dur); o.stop(now+dur+0.02);}catch(e){} }
+function successTune(){ beep(880,0.06); setTimeout(()=>beep(660,0.06),90); setTimeout(()=>beep(990,0.08),180); }
+
+/* UTIL */
+function updatePinDisplay(){ const max = Math.max(4, SECRET_PIN.length); const len = pinEntry.length; display.textContent = Array.from({length:max},(_,i)=> i < len ? '●' : '●').join(' '); }
+
+function gotoView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.setAttribute('aria-hidden','true'));
+  if(name==='pin'){ viewPin.classList.add('active'); viewPin.removeAttribute('aria-hidden'); }
+  if(name==='game'){ viewGame.classList.add('active'); viewGame.removeAttribute('aria-hidden'); }
+  if(name==='result'){ viewResult.classList.add('active'); viewResult.removeAttribute('aria-hidden'); }
+  if(name==='envelope'){ viewEnvelope.classList.add('active'); viewEnvelope.removeAttribute('aria-hidden'); }
+}
+
+/* PIN handlers */
+keypad.addEventListener('click', (e)=>{ const k=e.target; if(!k.classList.contains('key')) return; const v=k.textContent.trim(); if(v==='⌫'){ pinEntry=pinEntry.slice(0,-1); updatePinDisplay(); return; } if(v==='✓'){ checkPin(); return; } if(/\d/.test(v) && pinEntry.length<8){ pinEntry+=v; updatePinDisplay(); } });
+resetBtn.addEventListener('click', ()=>{ pinEntry=""; updatePinDisplay(); msg.textContent="PIN direset."; });
+hintBtn.addEventListener('click', ()=>{ msg.textContent=["Coba tanggal spesial 😉","Cobain yang gampang diingat 😏","Ssst.. 2025 😜"][Math.floor(Math.random()*3)]; });
+function checkPin(){
+  if(pinEntry === SECRET_PIN){
+    msg.textContent = "Benar! Siap masuk misi...";
+    successTune(); spawnConfetti(); setTimeout(()=> gotoView('game'), 650);
+  } else {
+    msg.textContent = ["Wah salah 😆","Bukan itu PINnya 😝","Coba lagi dong 😜"][Math.floor(Math.random()*3)];
+    display.classList.add('shake'); navigator.vibrate?.(110); spawnConfetti(['#ff6ec7','#ffd166']);
+    setTimeout(()=> display.classList.remove('shake'),420);
+  }
+  pinEntry=""; updatePinDisplay();
+}
+
+/* Confetti */
+function spawnConfetti(colors=['#39e6ff','#ff6ec7','#ffd166']){
+  for(let i=0;i<30;i++){
+    const c=document.createElement('div'); c.className='confetti'; c.style.background=colors[Math.floor(Math.random()*colors.length)]; c.style.left=Math.random()*100+'vw'; c.style.top=-10-Math.random()*30+'vh'; c.style.width=(6+Math.random()*8)+'px'; c.style.height=(8+Math.random()*8)+'px'; document.body.appendChild(c); const dur=900+Math.random()*1200; c.animate([{transform:`translateY(0) rotate(${Math.random()*360}deg)`, opacity:1},{transform:`translateY(${120+Math.random()*80}vh) rotate(${Math.random()*720}deg)`, opacity:0.95}], {duration:dur, easing:'linear'}); setTimeout(()=>c.remove(), dur+100);
+  }
+}
+
+/* GAME: spawn falling items */
+function rand(min,max){ return Math.random()*(max-min)+min; }
+
+function spawnItem(){
+  if(!inGame) return;
+  const it = document.createElement('div'); it.className='item'; const pool = ['💖','✨','🌟','🍬','💎','🐱']; it.textContent = pool[Math.floor(Math.random()*pool.length)];
+  const arenaRect = arena.getBoundingClientRect();
+  const x = 12 + Math.random()*76; it.style.left = x + '%'; it.style.top = -8 + '%';
+  arena.appendChild(it);
+  const floatDur = rand(ITEM_FLOAT_MIN, ITEM_FLOAT_MAX);
+  const startTime = performance.now();
+  const itemObj = {el:it, startTime, floatDur, startY:-8, caught:false};
+  items.push(itemObj);
+  // cleanup safety
+  setTimeout(()=> { const i = items.indexOf(itemObj); if(i>-1){ try{ itemObj.el.remove(); }catch{} items.splice(i,1); } }, floatDur + 1000);
+}
+
+/* update loop */
+function rectOverlap(a,b){ return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom); }
+
+function movePlayer(direction){
+  const arenaRect = arena.getBoundingClientRect();
+  const step = PLAYER_SPEED;
+  let cur = player.offsetLeft;
+  let newLeft = cur + direction * step;
+  const min = 6;
+  const max = arena.clientWidth - player.clientWidth - 6;
+  if(newLeft < min) newLeft = min;
+  if(newLeft > max) newLeft = max;
+  player.style.left = (newLeft + player.clientWidth/2) + 'px';
+}
+
+function gameLoop(now){
+  if(leftPressed || rightPressed){
+    movePlayer(leftPressed ? -1 : 1);
+  }
+  const playerRect = player.getBoundingClientRect();
+  for(let i=items.length-1;i>=0;i--){
+    const item = items[i];
+    const elapsed = now - item.startTime;
+    const prog = Math.min(1, elapsed / item.floatDur);
+    const ease = 1 - Math.pow(1-prog, 3);
+    const curTop = item.startY + (120 - item.startY) * ease;
+    item.el.style.top = curTop + '%';
+    const itRect = item.el.getBoundingClientRect();
+    if(!item.caught && rectOverlap(itRect, playerRect)){
+      item.caught = true;
+      score++; scoreEl.textContent = score;
+      beep(1200+Math.random()*300, 0.04, 'triangle');
+      item.el.style.transform = 'translate(-50%,-50%) scale(.6)';
+      setTimeout(()=>{ try{ item.el.remove(); }catch{} }, 90);
+      items.splice(i,1);
+      continue;
+    }
+    if(parseFloat(item.el.style.top) > 110){
+      try{ item.el.remove(); }catch{} items.splice(i,1);
+    }
+  }
+  animationId = requestAnimationFrame(gameLoop);
+}
+
+/* player drag */
+let dragging=false, dragStartX=0, playerStartLeft=0;
+player.addEventListener('pointerdown', (e)=>{ dragging=true; dragStartX=e.clientX; playerStartLeft=player.offsetLeft; player.setPointerCapture?.(e.pointerId); });
+player.addEventListener('pointermove', (e)=>{ if(!dragging) return; const dx=e.clientX-dragStartX; let newLeft=playerStartLeft + dx; const min=6; const max=arena.clientWidth-player.clientWidth-6; if(newLeft<min) newLeft=min; if(newLeft>max) newLeft=max; player.style.left = (newLeft + player.clientWidth/2) + 'px'; });
+player.addEventListener('pointerup', (e)=>{ dragging=false; try{ player.releasePointerCapture?.(e.pointerId); }catch{} });
+player.addEventListener('pointercancel', ()=> dragging=false);
+
+/* touch buttons */
+leftBtn.addEventListener('pointerdown', ()=> leftPressed=true);
+leftBtn.addEventListener('pointerup', ()=> leftPressed=false);
+leftBtn.addEventListener('pointercancel', ()=> leftPressed=false);
+rightBtn.addEventListener('pointerdown', ()=> rightPressed=true);
+rightBtn.addEventListener('pointerup', ()=> rightPressed=false);
+rightBtn.addEventListener('pointercancel', ()=> rightPressed=false);
+
+/* keyboard support */
+document.addEventListener('keydown', (e)=>{ if(e.key==='ArrowLeft') leftPressed=true; if(e.key==='ArrowRight') rightPressed=true; if(e.key===' ' && !inGame) startGame(); });
+document.addEventListener('keyup', (e)=>{ if(e.key==='ArrowLeft') leftPressed=false; if(e.key==='ArrowRight') rightPressed=false; });
+
+/* spawning manager */
+let spawnHandle = null;
+function startSpawning(){
+  if(!inGame) return;
+  const next = rand(ITEM_SPAWN_MIN, ITEM_SPAWN_MAX);
+  spawnHandle = setTimeout(()=>{ spawnItem(); startSpawning(); }, next);
+}
+function stopSpawning(){ if(spawnHandle) clearTimeout(spawnHandle); spawnHandle = null; }
+
+/* lifecycle */
+readyBtn.addEventListener('click', ()=> { if(!inGame) startGame(); });
+giveUpBtn.addEventListener('click', ()=> { if(inGame) endGame(true); gotoView('pin'); msg.textContent="Misi dibatalkan."; });
+
+function startGame(){
+  inGame=true; score=0; scoreEl.textContent=score; timeLeft=GAME_DURATION; timerEl.textContent=timeLeft;
+  gameMsg.textContent="Tangkap! Harus menang yaww"; msg.textContent="";
+  // center player
+  player.style.left = (arena.clientWidth/2) + 'px';
+  if(animationId) cancelAnimationFrame(animationId);
+  animationId = requestAnimationFrame(gameLoop);
+  startSpawning();
+  for(let i=0;i<2;i++) setTimeout(spawnItem, i*220);
+  gameInterval = setInterval(()=>{ timeLeft--; timerEl.textContent=timeLeft; if(timeLeft<=0) endGame(); if(timeLeft<=3) beep(800+(3-timeLeft)*120,0.04); }, 1000);
+  successTune();
+}
+
+function endGame(abort=false){
+  if(!inGame) return;
+  inGame=false;
+  stopSpawning();
+  if(gameInterval){ clearInterval(gameInterval); gameInterval=null; }
+  if(animationId){ cancelAnimationFrame(animationId); animationId=null; }
+  items.forEach(it=>{ try{ it.el.remove(); }catch{} });
+  items=[];
+  if(abort){ gameMsg.textContent="Dibatalkan."; return; }
+  gameMsg.textContent = `Selesai! Skor: ${score}`;
+  if(score >= REQUIRED_SCORE){
+    // success -> show photo screen
+    spawnConfetti(); successTune();
+    setTimeout(()=> { gotoView('result'); }, 900);
+  } else {
+    // fail -> show locked envelope message and retry
+    spawnConfetti(['#ff6ec7','#ffd166']);
+    msg.textContent = "Belum bisa buka amplop 😢 coba lagi ya~";
+    // show retry prompt
+    setTimeout(()=> { gameMsg.textContent = `Kurang ${REQUIRED_SCORE - score} lagi buat buka amplop. Tekan 'Siap!' untuk coba lagi.`; }, 300);
+    // remain in game view but require user to press ready again; do not auto-navigate
+    playHintShow();
+  }
+}
+
+/* play hint */
+function playHintShow(){ document.getElementById('playArea').querySelector('.hud').scrollIntoView({behavior:'smooth'}); }
+
+/* photo -> boom -> envelope */
+photoBox.addEventListener('click', ()=> {
+  // boom animation particles center at photoBox center then show envelope
+  const r = photoBox.getBoundingClientRect();
+  const cx = r.left + r.width/2;
+  const cy = r.top + r.height/2;
+  createBoom(cx, cy);
+  // animate photo scale pop
+  photoBox.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(0.92)'}], {duration:480, easing:'cubic-bezier(.2,.8,.2,1)'});
+  // after boom show envelope view
+  setTimeout(()=> {
+    // show envelope view
+    gotoView('envelope');
+    // ensure envelope closed initial state
+    flap.style.transform = 'rotateX(0deg)';
+    paper.classList.remove('show');
+    letterText.textContent = "";
+    // put letter content into dataset for typing
+    letterText.dataset.full = LETTER_CONTENT;
+  }, 520);
+});
+
+function createBoom(cx,cy){
+  const colors = ['#ff6ec7','#39e6ff','#ffd166','#9bffb6'];
+  const count = 20;
+  for(let i=0;i<count;i++){
+    const p = document.createElement('div'); p.className='boom-piece'; p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    document.body.appendChild(p);
+    p.style.left = cx + 'px'; p.style.top = cy + 'px';
+    const angle = Math.random()*Math.PI*2;
+    const speed = 90 + Math.random()*200;
+    const vx = Math.cos(angle)*speed;
+    const vy = Math.sin(angle)*speed;
+    const rot = Math.random()*720;
+    const dur = 700 + Math.random()*500;
+    const start = performance.now();
+    (function anim(now){
+      const t = (now - start)/dur;
+      if(t >= 1){ p.remove(); return; }
+      p.style.left = (cx + vx * t) + 'px';
+      p.style.top = (cy + vy * t + (200 * t * t)) + 'px'; // gravity-ish
+      p.style.transform = `rotate(${rot * t}deg) scale(${1 - 0.7*t})`;
+      requestAnimationFrame(anim);
+    })(performance.now());
+  }
+}
+
+/* envelope open typing */
+let envOpened=false;
+envelope.addEventListener('click', ()=> {
+  if(envOpened) return;
+  envOpened = true;
+  flap.style.transform = 'rotateX(180deg)';
+  setTimeout(()=> {
+    paper.classList.add('show');
+    const txt = letterText.dataset.full || LETTER_CONTENT;
+    typeText(letterText, txt, 26);
+  }, 380);
+});
+
+function typeText(el,text,speed=26){
+  return new Promise((res)=>{
+    el.textContent = "";
+    let i=0;
+    const t = setInterval(()=> {
+      el.textContent += text.charAt(i);
+      i++;
+      if(i >= text.length){ clearInterval(t); res(); }
+    }, speed);
+  });
+}
+
+/* download letter */
+downloadBtn.addEventListener('click', ()=> {
+  const content = letterText.textContent || LETTER_CONTENT;
+  const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'surat_misi.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+/* restart */
+restartBtn.addEventListener('click', ()=> {
+  envOpened=false; flap.style.transform='rotateX(0deg)'; paper.classList.remove('show'); letterText.textContent="";
+  gotoView('pin'); msg.textContent="Masukin PIN lagi kalau mau ulang.";
+});
+
+/* misc beep helper */
+function beep(freq,dur,type){ try{ if(!audioCtx) audioCtx = new AudioCtx(); const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=type||'sine'; o.frequency.value=freq; o.connect(g); g.connect(audioCtx.destination); const now=audioCtx.currentTime; g.gain.value=0.0001; g.gain.exponentialRampToValueAtTime(0.12, now+0.01); o.start(now); g.gain.exponentialRampToValueAtTime(0.0001, now+dur); o.stop(now+dur+0.02);}catch(e){} }
+
+/* init */
+updatePinDisplay(); gotoView('pin'); msg.textContent="Masukkan PIN rahasia untuk memulai misi.";
+
+/* accessibility: remove pointer capture on leave */
+window.addEventListener('blur', ()=>{ leftPressed=false; rightPressed=false; dragging=false; });
+
+</script>
+</body>
+</html>
